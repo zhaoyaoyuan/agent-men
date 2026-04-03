@@ -1,0 +1,21 @@
+export const eventsTable = {
+  name: 'events',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    project_id: 'TEXT NOT NULL',
+    user_id: 'TEXT NOT NULL',
+    agent_id: 'TEXT',
+    event_type: 'TEXT NOT NULL',
+    source_type: 'TEXT NOT NULL',
+    scope_type: 'TEXT NOT NULL',
+    scope_key: 'TEXT',
+    title: 'TEXT',
+    summary: 'TEXT',
+    content_text: 'TEXT',
+    payload_json: 'TEXT',
+    content_storage_mode: "TEXT NOT NULL DEFAULT 'full_text'",
+    importance_score: 'REAL NOT NULL DEFAULT 0.5',
+    happened_at: 'TEXT NOT NULL',
+    created_at: 'TEXT NOT NULL',
+  },
+} as const
