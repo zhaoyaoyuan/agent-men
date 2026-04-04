@@ -45,6 +45,16 @@ export interface MemoryRecordLike {
   updated_at?: string
 }
 
+export interface MemoryRepository {
+  insert(record: MemoryRecordLike): Promise<void>
+  findById(id: string): Promise<MemoryRecordLike | null>
+  findByProjectId(projectId: string): Promise<MemoryRecordLike[]>
+  findByProjectIdAndType(projectId: string, memoryType: MemoryRecordLike['memoryType']): Promise<MemoryRecordLike[]>
+  update(id: string, updates: Partial<Omit<MemoryRecordLike, 'id'>>): Promise<void>
+  delete(id: string): Promise<void>
+  close(): void
+}
+
 export interface MemoryRecord extends Omit<MemoryRecordLike, 'projectId' | 'userId' | 'memoryType' | 'scopeType' | 'scopeKey' | 'confidence' | 'strength' | 'decayScore' | 'importanceScore' | 'accessCount' | 'successCount' | 'failureCount' | 'lastAccessedAt' | 'lastVerifiedAt' | 'lastReinforcedAt' | 'expiresAt' | 'sourceStrategy' | 'explanationJson' | 'metadataJson' | 'createdAt' | 'updatedAt'> {
   id: string
   project_id: string
@@ -95,7 +105,7 @@ export interface MemoryRecord extends Omit<MemoryRecordLike, 'projectId' | 'user
   updatedAt: string
 }
 
-export class InMemoryMemoryRepository {
+export class InMemoryMemoryRepository implements MemoryRepository {
   private store = new Map<string, MemoryRecordLike>()
 
   async insert(record: MemoryRecordLike): Promise<void> {

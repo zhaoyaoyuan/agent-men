@@ -38,6 +38,33 @@ echo "项目: $PROJECT"
 echo "内容: $content"
 echo
 
+# 检查项目是否存在，如果不存在则自动创建
+PROJECT_CHECK=$(curl -s -X GET http://localhost:3000/api/projects 2>/dev/null)
+PROJECT_EXISTS=$(echo "$PROJECT_CHECK" | python3 -c "
+import json
+try:
+    data = json.loads('''$PROJECT_CHECK''')
+    if data.get('success'):
+        projects = [p['id'] for p in data['data']]
+        print('true' if '$PROJECT' in projects else 'false')
+    else:
+        print('false')
+except:
+    print('false')
+" 2>/dev/null)
+
+if [ "$PROJECT_EXISTS" != "true" ]; then
+  echo "项目 $PROJECT 不存在，正在自动创建..."
+  CREATE_RESPONSE=$(curl -s -X POST http://localhost:3000/api/projects \
+    -H "Content-Type: application/json" \
+    -d "{
+      \"id\": \"$PROJECT\",
+      \"name\": \"$PROJECT\"
+    }" 2>/dev/null)
+  echo "$CREATE_RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$CREATE_RESPONSE"
+  echo ""
+fi
+
 # 调用 ingest API
 RESPONSE=$(curl -s -X POST http://localhost:3000/api/ingest \
   -H "Content-Type: application/json" \
@@ -50,7 +77,7 @@ RESPONSE=$(curl -s -X POST http://localhost:3000/api/ingest \
       \"scopeType\": \"project\",
       \"contentText\": $(printf '%s' "$content" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
     }
-  }")
+  }" 2>/dev/null)
 
 echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
 ```
@@ -78,3 +105,5 @@ curl -s -X POST http://localhost:3000/api/extract \
 |------|---------|
 | 连接 refused | 确认 Memory OS 服务已启动：`cd /path/to/agent-mem && npm start` |
 | 服务未启动 | 需要先启动服务才能使用，服务默认端口 3000 |
+| `event.sourceType is invalid` | 更新的 Memory OS 已支持 `claude-code`，确保你使用的是最新版本 |
+| `project not found` | 新版 skill 会自动创建不存在的项目，确保 Memory OS 服务已运行且 API 可访问 |

@@ -1,11 +1,12 @@
 import Database from 'better-sqlite3'
+import type DatabaseType from 'better-sqlite3'
 import { projectsTable } from '../schema/projects'
 import { eventsTable } from '../schema/events'
 import { memoriesTable } from '../schema/memories'
 import { eventMemoryLinksTable } from '../schema/event-memory-links'
 
 export interface SqliteClient {
-  db: Database
+  db: DatabaseType.Database
   path: string
 }
 
@@ -27,7 +28,7 @@ function generateCreateIndexesDDL(table: any): string[] {
     return []
   }
   // indexDef is already "idx_name (columns)", so we need to insert IF NOT EXISTS after the name
-  return table.indexes.map(indexDef => {
+  return table.indexes.map((indexDef: string) => {
     // Split "idx_event_memory_links_memory_id (memory_id)" into name and columns
     const spaceIndex = indexDef.indexOf(' ')
     if (spaceIndex === -1) {

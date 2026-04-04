@@ -1,8 +1,8 @@
 import Database from 'better-sqlite3'
 import type { SqliteClient } from '../db/client/sqlite'
-import type { ProjectRecord, ProjectRecordLike } from './project-repository'
+import type { ProjectRecord, ProjectRecordLike, ProjectRepository } from './project-repository'
 
-export class SQLiteProjectRepository {
+export class SQLiteProjectRepository implements ProjectRepository {
   private db: Database.Database
 
   constructor(client: SqliteClient) {
@@ -100,6 +100,17 @@ export class SQLiteProjectRepository {
 
   async delete(id: string): Promise<void> {
     this.db.prepare(`DELETE FROM projects WHERE id = ?`).run(id)
+  }
+
+  async findAll(): Promise<ProjectRecord[]> {
+    const rows = this.db.prepare(`
+      SELECT id, slug, name, description, owner_user_id, status, settings_json, created_at, updated_at
+      FROM projects
+      WHERE status != 'deleted'
+      ORDER BY created_at DESC
+    `).all() as ProjectRecord[]
+
+    return rows.map(row => ({ ...row }))
   }
 
   /**

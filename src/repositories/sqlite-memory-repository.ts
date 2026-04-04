@@ -1,8 +1,8 @@
 import Database from 'better-sqlite3'
 import type { SqliteClient } from '../db/client/sqlite'
-import type { MemoryRecord, MemoryRecordLike } from './memory-repository'
+import type { MemoryRecord, MemoryRecordLike, MemoryRepository } from './memory-repository'
 
-export class SQLiteMemoryRepository {
+export class SQLiteMemoryRepository implements MemoryRepository {
   private db: Database.Database
 
   constructor(client: SqliteClient) {
@@ -145,7 +145,7 @@ export class SQLiteMemoryRepository {
              success_count, failure_count, last_accessed_at, last_verified_at, last_reinforced_at,
              expires_at, source_strategy, explanation_json, metadata_json, created_at, updated_at
       FROM memories
-      WHERE project_id = ?
+      WHERE project_id = ? AND status != 'deleted'
       ORDER BY created_at DESC
     `).all(projectId) as MemoryRecord[]
 

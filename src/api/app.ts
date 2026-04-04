@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import fs from 'node:fs'
+import path from 'node:path'
 import { validateIngestEventInput } from '../services/validators/ingest-event-validator'
 import { validateExtractMemoriesInput } from '../services/validators/extract-memories-validator'
 import { validateRecallMemoriesInput } from '../services/validators/recall-memories-validator'
@@ -8,6 +10,8 @@ import type { ApiResponse } from '../shared/result'
 import type { createIngestEventService } from '../services/ingest-event-service'
 import type { createExtractMemoriesService } from '../services/extract-memories-service'
 import type { createRecallMemoriesService } from '../services/recall-memories-service'
+import type { ProjectRepository } from '../repositories/project-repository'
+import type { MemoryRepository } from '../repositories/memory-repository'
 
 export type IngestEventService = Awaited<ReturnType<typeof createIngestEventService>>
 export type ExtractMemoriesService = Awaited<ReturnType<typeof createExtractMemoriesService>>
@@ -17,6 +21,8 @@ interface AppDependencies {
   ingestEventService: IngestEventService
   extractMemoriesService: ExtractMemoriesService
   recallMemoriesService: RecallMemoriesService
+  projectRepository: ProjectRepository
+  memoryRepository: MemoryRepository
 }
 
 const statusCodeMap: Record<string, ContentfulStatusCode> = {
@@ -233,6 +239,190 @@ export function createApp(deps: AppDependencies) {
       }
       throw err
     }
+  })
+
+  // List all projects
+  app.get('/api/projects', async (c) => {
+    try {
+      // For now, get all projects (assuming default user for browsing)
+      // In a multi-user system, this would need authentication
+      const projects = await deps.projectRepository.findAll()
+      return c.json({
+        success: true,
+        data: projects
+      })
+    } catch (err) {
+      if (err instanceof ApiError) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: err.code,
+              message: err.message,
+              details: err.details,
+              retryable: err.retryable,
+            },
+          } satisfies ApiResponse<never>,
+          getStatusCode(err.code),
+        )
+      }
+      throw err
+    }
+  })
+
+  // Create a new project
+  app.post('/api/projects', async (c) => {
+    let body: unknown
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'Invalid JSON body',
+          },
+        } satisfies ApiResponse<never>,
+        400,
+      )
+    }
+
+    try {
+      const { id, name, slug, description } = body as {
+        id: string
+        name: string
+        slug?: string
+        description?: string
+      }
+
+      if (!id || typeof id !== 'string' || id.trim() === '') {
+        throw new ApiError('INVALID_INPUT', 'id is required')
+      }
+      if (!name || typeof name !== 'string' || name.trim() === '') {
+        throw new ApiError('INVALID_INPUT', 'name is required')
+      }
+
+      // Check if project already exists
+      const existing = await deps.projectRepository.findById(id)
+      if (existing) {
+        throw new ApiError('CONFLICT', 'project already exists with this id')
+      }
+
+      await deps.projectRepository.insert({
+        id,
+        name,
+        slug: slug || id,
+        description: description || null,
+        owner_user_id: 'me',
+      })
+
+      return c.json({
+        success: true,
+        data: {
+          id,
+          name,
+          slug: slug || id,
+        },
+      }, 201)
+    } catch (err) {
+      if (err instanceof ApiError) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: err.code,
+              message: err.message,
+              details: err.details,
+              retryable: err.retryable,
+            },
+          } satisfies ApiResponse<never>,
+          getStatusCode(err.code),
+        )
+      }
+      throw err
+    }
+  })
+
+  // List all memories for a project
+  app.get('/api/projects/:projectId/memories', async (c) => {
+    const { projectId } = c.req.param()
+
+    try {
+      const memories = await deps.memoryRepository.findByProjectId(projectId)
+      // Convert to camelCase for frontend consumption
+      const camelCased = memories.map(memory => ({
+        id: memory.id,
+        projectId: memory.projectId || memory.project_id,
+        userId: memory.userId || memory.user_id,
+        memoryType: memory.memoryType || memory.memory_type,
+        title: memory.title,
+        content: memory.content,
+        summary: memory.summary,
+        status: memory.status,
+        confidence: memory.confidence,
+        strength: memory.strength,
+        importanceScore: memory.importanceScore || memory.importance_score,
+        accessCount: memory.accessCount || memory.access_count,
+        createdAt: memory.createdAt || memory.created_at,
+        updatedAt: memory.updatedAt || memory.updated_at,
+      }))
+      return c.json({
+        success: true,
+        data: camelCased
+      })
+    } catch (err) {
+      if (err instanceof ApiError) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: err.code,
+              message: err.message,
+              details: err.details,
+              retryable: err.retryable,
+            },
+          } satisfies ApiResponse<never>,
+          getStatusCode(err.code),
+        )
+      }
+      throw err
+    }
+  })
+
+  // Serve static UI files
+  app.get('/*', async (c) => {
+    try {
+      let filePath = c.req.path
+      if (filePath === '/') {
+        filePath = '/index.html'
+      }
+      // Security: resolve against public root and validate it stays within public directory
+      const publicRoot = path.resolve(process.cwd(), 'public')
+      const requestedPath = path.resolve(path.join(publicRoot, filePath))
+      // Ensure the requested path stays within the public directory (prevents path traversal)
+      if (!requestedPath.startsWith(publicRoot)) {
+        return c.notFound()
+      }
+
+      if (fs.existsSync(requestedPath)) {
+        const content = fs.readFileSync(requestedPath)
+        const ext = path.extname(requestedPath)
+        let contentType = 'text/plain'
+        if (ext === '.html') contentType = 'text/html'
+        if (ext === '.css') contentType = 'text/css'
+        if (ext === '.js') contentType = 'application/javascript'
+
+        return new Response(content, {
+          headers: { 'Content-Type': contentType }
+        })
+      }
+    } catch (err) {
+      console.error('Error serving static file:', err)
+    }
+
+    // Fall through to not found
+    return c.notFound()
   })
 
   return app

@@ -1,15 +1,38 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createApp, type IngestEventService, type ExtractMemoriesService, type RecallMemoriesService } from '../../src/api/app'
+import type { ProjectRepository } from '../../src/repositories/project-repository'
+import type { MemoryRepository } from '../../src/repositories/memory-repository'
 
 describe('API Routes', () => {
   const mockIngestEvent = vi.fn<IngestEventService>()
   const mockExtractMemories = vi.fn<ExtractMemoriesService>()
   const mockRecallMemories = vi.fn<RecallMemoriesService>()
+  const mockProjectRepository: ProjectRepository = {
+    insert: vi.fn(),
+    findById: vi.fn().mockResolvedValue(null),
+    findBySlug: vi.fn().mockResolvedValue(null),
+    findByOwnerId: vi.fn().mockResolvedValue([]),
+    findAll: vi.fn().mockResolvedValue([]),
+    update: vi.fn(),
+    delete: vi.fn(),
+    close: vi.fn(),
+  }
+  const mockMemoryRepository: MemoryRepository = {
+    insert: vi.fn(),
+    findById: vi.fn().mockResolvedValue(null),
+    findByProjectId: vi.fn().mockResolvedValue([]),
+    findByProjectIdAndType: vi.fn().mockResolvedValue([]),
+    update: vi.fn(),
+    delete: vi.fn(),
+    close: vi.fn(),
+  }
 
   const app = createApp({
     ingestEventService: mockIngestEvent,
     extractMemoriesService: mockExtractMemories,
     recallMemoriesService: mockRecallMemories,
+    projectRepository: mockProjectRepository,
+    memoryRepository: mockMemoryRepository,
   })
 
   describe('POST /api/ingest', () => {

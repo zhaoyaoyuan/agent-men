@@ -22,7 +22,18 @@ export interface ProjectRecordLike {
   updated_at?: string
 }
 
-export class InMemoryProjectRepository {
+export interface ProjectRepository {
+  insert(record: ProjectRecordLike): Promise<void>
+  findById(id: string): Promise<ProjectRecord | null>
+  findBySlug(slug: string): Promise<ProjectRecord | null>
+  findByOwnerId(ownerId: string): Promise<ProjectRecord[]>
+  findAll(): Promise<ProjectRecord[]>
+  update(id: string, updates: Partial<ProjectRecord>): Promise<void>
+  delete(id: string): Promise<void>
+  close(): void
+}
+
+export class InMemoryProjectRepository implements ProjectRepository {
   private store = new Map<string, ProjectRecord>()
 
   async insert(record: ProjectRecordLike): Promise<void> {
@@ -67,5 +78,15 @@ export class InMemoryProjectRepository {
 
   async delete(id: string): Promise<void> {
     this.store.delete(id)
+  }
+
+  async findAll(): Promise<ProjectRecord[]> {
+    return Array.from(this.store.values())
+      .filter(record => record.status !== 'deleted')
+      .map(record => ({ ...record }))
+  }
+
+  close(): void {
+    this.store.clear()
   }
 }

@@ -10,7 +10,7 @@ export const EVENT_TYPES = [
 
 export type EventType = (typeof EVENT_TYPES)[number]
 
-export const SOURCE_TYPES = ['claude', 'cursor', 'sdk', 'cli', 'mcp', 'system', 'external'] as const
+export const SOURCE_TYPES = ['claude', 'claude-code', 'cursor', 'sdk', 'cli', 'mcp', 'system', 'external'] as const
 
 export type SourceType = (typeof SOURCE_TYPES)[number]
 

@@ -55,6 +55,8 @@ const app = createApp({
   ingestEventService,
   extractMemoriesService,
   recallMemoriesService,
+  projectRepository,
+  memoryRepository,
 })
 
 const port = config.port
