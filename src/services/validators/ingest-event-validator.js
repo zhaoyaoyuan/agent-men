@@ -13,11 +13,16 @@ export function validateIngestEventInput(input) {
     if (!isValidEventType(input.event.eventType)) {
         throw new ApiError('INVALID_INPUT', 'event.eventType is invalid');
     }
-    if (!input.event?.sourceType) {
-        throw new ApiError('INVALID_INPUT', 'event.sourceType is required');
-    }
-    if (!isValidSourceType(input.event.sourceType)) {
-        throw new ApiError('INVALID_INPUT', 'event.sourceType is invalid');
+    // sourceType 允许任意字符串，但不能为空
+    // sourceType 在类型上是必填的，但实际调用可能省略
+    const sourceType = input.event?.sourceType;
+    if (sourceType !== undefined) {
+        if (typeof sourceType !== 'string') {
+            throw new ApiError('INVALID_INPUT', 'event.sourceType must be a string');
+        }
+        if (sourceType.trim() === '') {
+            throw new ApiError('INVALID_INPUT', 'event.sourceType is required');
+        }
     }
     if (!input.event?.scope?.type) {
         throw new ApiError('INVALID_INPUT', 'event.scope.type is required');

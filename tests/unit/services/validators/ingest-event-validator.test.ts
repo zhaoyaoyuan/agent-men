@@ -189,7 +189,7 @@ describe('validateIngestEventInput', () => {
     ).toThrow('event.eventType is invalid')
   })
 
-  it('should reject unsupported sourceType', () => {
+  it('should accept any string sourceType (no validation)', () => {
     expect(() =>
       validateIngestEventInput({
         projectId: 'p1',
@@ -200,7 +200,7 @@ describe('validateIngestEventInput', () => {
           scope: { type: 'project' },
         },
       }),
-    ).toThrow('event.sourceType is invalid')
+    ).not.toThrow()
   })
 
   it('should reject unsupported scope type', () => {
